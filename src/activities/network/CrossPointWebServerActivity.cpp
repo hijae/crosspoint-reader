@@ -348,7 +348,7 @@ void CrossPointWebServerActivity::loop() {
         // Yield and check for exit button every 64 iterations
         if ((i & 0x3F) == 0x3F) {
           yield();
-          // Force trigger an update of which buttons are being pressed so be have accurate stat
+          // Force trigger an update of which buttons are being pressed so be have accurate state
           // for back button checking
           mappedInput.update();
           // Check for exit button inside loop for responsiveness
