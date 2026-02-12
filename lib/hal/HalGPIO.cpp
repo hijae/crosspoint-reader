@@ -44,11 +44,10 @@ void HalGPIO::startDeepSleep() {
 
 int HalGPIO::getBatteryPercentage() const {
   if (_deviceType == DeviceType::X3) {
-    // X3 battery telemetry is not on ADC in stock fw; avoid fighting EPD DC on GPIO4.
     return 0;
   }
-  static const BatteryMonitor battery = BatteryMonitor(BAT_GPIO0);
-  return battery.readPercentage();
+  static const BatteryMonitor bat(BAT_GPIO0);
+  return bat.readPercentage();
 }
 
 bool HalGPIO::isUsbConnected() const {

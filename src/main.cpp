@@ -5,6 +5,7 @@
 #include <HalGPIO.h>
 #include <HalStorage.h>
 #include <SPI.h>
+#include <Wire.h>
 #include <builtinFonts/all.h>
 
 #include <cstring>
@@ -259,6 +260,11 @@ void setupDisplayAndFonts() {
     display.setBwOnly(true);
     display.setControllerType(EInkDisplay::ControllerType::SSD1677);
     display.setDisplayDimensions(792, 528);
+    // X3 has a BQ27220 fuel gauge on I2C (addr 0x55) instead of an ADC voltage
+    // divider. SOC (0-100%) is read directly from register 0x2C.
+    // I2C bus: SDA=GPIO20, SCL=GPIO0, 400kHz (matches stock X3 firmware).
+    Wire.begin(20, 0, 400000);
+    battery().setI2CFuelGauge(0x55, 0x2C);
   }
   display.begin();
   renderer.begin();

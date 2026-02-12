@@ -22,7 +22,7 @@ constexpr int homeMarginTop = 30;
 void BaseTheme::drawBattery(const GfxRenderer& renderer, Rect rect, const bool showPercentage) const {
   // Left aligned battery icon and percentage
   // TODO refactor this so the percentage doesnt change after we position it
-  const uint16_t percentage = battery.readPercentage();
+  const uint16_t percentage = battery().readPercentage();
   if (showPercentage) {
     const auto percentageText = std::to_string(percentage) + "%";
     renderer.drawText(SMALL_FONT_ID, rect.x + batteryPercentSpacing + BaseMetrics::values.batteryWidth, rect.y,
@@ -232,7 +232,7 @@ void BaseTheme::drawHeader(const GfxRenderer& renderer, Rect rect, const char* t
       SETTINGS.hideBatteryPercentage != CrossPointSettings::HIDE_BATTERY_PERCENTAGE::HIDE_ALWAYS;
   int batteryX = rect.x + rect.width - BaseMetrics::values.contentSidePadding - BaseMetrics::values.batteryWidth;
   if (showBatteryPercentage) {
-    const uint16_t percentage = battery.readPercentage();
+    const uint16_t percentage = battery().readPercentage();
     const auto percentageText = std::to_string(percentage) + "%";
     batteryX -= renderer.getTextWidth(SMALL_FONT_ID, percentageText.c_str());
   }

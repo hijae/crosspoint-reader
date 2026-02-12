@@ -22,7 +22,7 @@ constexpr int topHintButtonY = 345;
 
 void LyraTheme::drawBattery(const GfxRenderer& renderer, Rect rect, const bool showPercentage) const {
   // Left aligned battery icon and percentage
-  const uint16_t percentage = battery.readPercentage();
+  const uint16_t percentage = battery().readPercentage();
   if (showPercentage) {
     const auto percentageText = std::to_string(percentage) + "%";
     renderer.drawText(SMALL_FONT_ID, rect.x + batteryPercentSpacing + LyraMetrics::values.batteryWidth, rect.y,
@@ -64,7 +64,7 @@ void LyraTheme::drawHeader(const GfxRenderer& renderer, Rect rect, const char* t
       SETTINGS.hideBatteryPercentage != CrossPointSettings::HIDE_BATTERY_PERCENTAGE::HIDE_ALWAYS;
   int batteryX = rect.x + rect.width - LyraMetrics::values.contentSidePadding - LyraMetrics::values.batteryWidth;
   if (showBatteryPercentage) {
-    const uint16_t percentage = battery.readPercentage();
+    const uint16_t percentage = battery().readPercentage();
     const auto percentageText = std::to_string(percentage) + "%";
     batteryX -= renderer.getTextWidth(SMALL_FONT_ID, percentageText.c_str());
   }
