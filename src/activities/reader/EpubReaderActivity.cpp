@@ -33,6 +33,12 @@ int clampPercent(int percent) {
   return percent;
 }
 
+bool isX3DisplayGeometry(const GfxRenderer& renderer) {
+  const int w = renderer.getScreenWidth();
+  const int h = renderer.getScreenHeight();
+  return (w == 792 && h == 528) || (w == 528 && h == 792);
+}
+
 // Apply the logical reader orientation to the renderer.
 // This centralizes orientation mapping so we don't duplicate switch logic elsewhere.
 void applyReaderOrientation(GfxRenderer& renderer, const uint8_t orientation) {
@@ -682,12 +688,13 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
     pagesUntilFullRefresh--;
   }
 
-  // Save bw buffer to reset buffer state after grayscale data sync
-  renderer.storeBwBuffer();
+  const bool useGrayscaleAA = SETTINGS.textAntiAliasing && !isX3DisplayGeometry(renderer);
+  if (useGrayscaleAA) {
+    // Save BW buffer only when we actually run grayscale passes.
+    renderer.storeBwBuffer();
 
-  // grayscale rendering
-  // TODO: Only do this if font supports it
-  if (SETTINGS.textAntiAliasing) {
+    // grayscale rendering
+    // TODO: Only do this if font supports it
     renderer.clearScreen(0x00);
     renderer.setRenderMode(GfxRenderer::GRAYSCALE_LSB);
     page->render(renderer, SETTINGS.getReaderFontId(), orientedMarginLeft, orientedMarginTop);
@@ -702,10 +709,10 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
     // display grayscale part
     renderer.displayGrayBuffer();
     renderer.setRenderMode(GfxRenderer::BW);
-  }
 
-  // restore the bw data
-  renderer.restoreBwBuffer();
+    // restore the bw data
+    renderer.restoreBwBuffer();
+  }
 }
 
 void EpubReaderActivity::renderStatusBar(const int orientedMarginRight, const int orientedMarginBottom,

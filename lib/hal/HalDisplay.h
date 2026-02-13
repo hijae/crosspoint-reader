@@ -36,6 +36,9 @@ class HalDisplay {
 
   void displayBuffer(RefreshMode mode = RefreshMode::FAST_REFRESH, bool turnOffScreen = false);
   void refreshDisplay(RefreshMode mode = RefreshMode::FAST_REFRESH, bool turnOffScreen = false);
+  // Hint the display driver to perform a one-shot full resync on next update.
+  // Optional settle passes are used by X3 only.
+  void requestResync(uint8_t settlePasses = 0);
 
   // Power management
   void deepSleep();
