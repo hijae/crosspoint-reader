@@ -9,6 +9,7 @@
 #include <builtinFonts/all.h>
 
 #include <cstring>
+
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
 #include "KOReaderCredentialStore.h"
@@ -192,40 +193,22 @@ void waitForPowerRelease() {
   }
 }
 
-// X3 wake gate: avoid "timing lottery" from strict calibration logic,
-// but still require an intentional press (not a tap).
 bool verifyPowerButtonDurationX3() {
-  constexpr uint16_t detectWindowMs = 1200;  // time to detect an intentional wake press
-  constexpr uint16_t minHoldMs = 180;        // short, deliberate hold (blocks accidental taps)
+  // Match X4 semantics: require only the *remaining* hold time after boot.
+  // This avoids extra wake-delay windows and sleep/retry loops.
+  const uint16_t requiredHoldMs = SETTINGS.getPowerButtonDuration();
+  const uint16_t calibration = millis();
+  const uint16_t calibratedPressDuration = (calibration < requiredHoldMs) ? (requiredHoldMs - calibration) : 1;
+  const uint8_t powerPin = InputManager::POWER_BUTTON_PIN;
 
-  const unsigned long start = millis();
-  bool sawPress = false;
-  unsigned long pressStart = 0;
+  // Wake is already caused by power button; require it to still be held now.
+  if (digitalRead(powerPin) != LOW) return false;
 
-  // Stage 1: wait for the button state to settle and detect a press.
-  while (millis() - start < detectWindowMs) {
-    gpio.update();
-    if (gpio.isPressed(HalGPIO::BTN_POWER)) {
-      sawPress = true;
-      pressStart = millis();
-      break;
-    }
-    delay(10);
+  const unsigned long holdStart = millis();
+  while (millis() - holdStart < calibratedPressDuration) {
+    if (digitalRead(powerPin) != LOW) return false;
+    delay(5);
   }
-
-  if (!sawPress) {
-    return false;
-  }
-
-  // Stage 2: require a short continuous hold.
-  while (millis() - pressStart < minHoldMs) {
-    gpio.update();
-    if (!gpio.isPressed(HalGPIO::BTN_POWER)) {
-      return false;
-    }
-    delay(10);
-  }
-
   return true;
 }
 
@@ -354,15 +337,12 @@ void setup() {
   const auto wakeupReason = gpio.getWakeupReason();
   switch (wakeupReason) {
     case HalGPIO::WakeupReason::PowerButton:
-      // X3 uses a relaxed fixed hold check to avoid strict timing behavior
-      // while still filtering accidental single-click wakes.
       if (gpio.getDeviceType() == HalGPIO::DeviceType::X3) {
-        LOG_DBG("MAIN", "Verifying relaxed power-button wake on X3");
+        LOG_DBG("MAIN", "Verifying power button press duration (X3)");
         if (!verifyPowerButtonDurationX3()) {
           gpio.startDeepSleep();
         }
       } else {
-        // For non-X3 wakeups, keep existing verification behavior.
         LOG_DBG("MAIN", "Verifying power button press duration");
         verifyPowerButtonDuration();
       }
