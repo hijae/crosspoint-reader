@@ -6,12 +6,9 @@
 #include <HalStorage.h>
 #include <Logging.h>
 #include <SPI.h>
-#include <Wire.h>
 #include <builtinFonts/all.h>
 
 #include <cstring>
-
-#include "Battery.h"
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
 #include "KOReaderCredentialStore.h"
@@ -130,12 +127,6 @@ EpdFontFamily ui12FontFamily(&ui12RegularFont, &ui12BoldFont);
 unsigned long t1 = 0;
 unsigned long t2 = 0;
 
-inline void requestResyncIfX3(uint8_t settlePasses = 0) {
-  if (gpio.getDeviceType() == HalGPIO::DeviceType::X3) {
-    display.requestResync(settlePasses);
-  }
-}
-
 void exitActivity() {
   if (currentActivity) {
     currentActivity->onExit();
@@ -243,7 +234,7 @@ void enterDeepSleep() {
   APP_STATE.lastSleepFromReader = currentActivity && currentActivity->isReaderActivity();
   APP_STATE.saveToFile();
   exitActivity();
-  requestResyncIfX3(0);
+  display.requestResync();
   enterNewActivity(new SleepActivity(renderer, mappedInputManager));
 
   display.deepSleep();
@@ -294,9 +285,7 @@ void onGoToBrowser() {
 
 void onGoHome() {
   const bool returningFromReader = currentActivity && currentActivity->isReaderActivity();
-  if (returningFromReader && (gpio.getDeviceType() == HalGPIO::DeviceType::X3)) {
-    // Force Home's first frame to run a full resync on X3.
-    // Avoid doing a blocking scrub refresh before activity transition.
+  if (returningFromReader) {
     display.requestResync(1);
   }
   exitActivity();
@@ -307,11 +296,6 @@ void onGoHome() {
 void setupDisplayAndFonts() {
   if (gpio.getDeviceType() == HalGPIO::DeviceType::X3) {
     display.setDisplayDimensions(792, 528);
-    // X3 has a BQ27220 fuel gauge on I2C (addr 0x55) instead of an ADC voltage
-    // divider. SOC (0-100%) is read directly from register 0x2C.
-    // I2C bus: SDA=GPIO20, SCL=GPIO0, 400kHz (matches stock X3 firmware).
-    Wire.begin(20, 0, 400000);
-    battery().setI2CFuelGauge(0x55, 0x2C);
   }
   display.begin();
   renderer.begin();
@@ -401,7 +385,7 @@ void setup() {
   setupDisplayAndFonts();
   if (wakeupReason == HalGPIO::WakeupReason::PowerButton || wakeupReason == HalGPIO::WakeupReason::AfterFlash ||
       wakeupReason == HalGPIO::WakeupReason::Other) {
-    requestResyncIfX3(0);
+    display.requestResync();
   }
 
   exitActivity();

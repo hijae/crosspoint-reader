@@ -30,6 +30,9 @@ class HalGPIO {
   DeviceType _deviceType = DeviceType::X4;
   int _detectAdcValue = 0;
   int _batteryPin = BAT_GPIO0;
+  bool _useI2C = false;
+  uint8_t _i2cAddr = 0;
+  uint8_t _socRegister = 0;
 
  public:
   HalGPIO() = default;
@@ -73,3 +76,5 @@ class HalGPIO {
   static constexpr uint8_t BTN_DOWN = 5;
   static constexpr uint8_t BTN_POWER = 6;
 };
+
+extern HalGPIO gpio;

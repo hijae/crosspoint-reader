@@ -3,6 +3,7 @@
 #include <Epub/Page.h>
 #include <FsHelpers.h>
 #include <GfxRenderer.h>
+#include <HalGPIO.h>
 #include <HalStorage.h>
 #include <Logging.h>
 
@@ -32,12 +33,6 @@ int clampPercent(int percent) {
     return 100;
   }
   return percent;
-}
-
-bool isX3DisplayGeometry(const GfxRenderer& renderer) {
-  const int w = renderer.getScreenWidth();
-  const int h = renderer.getScreenHeight();
-  return (w == 792 && h == 528) || (w == 528 && h == 792);
 }
 
 // Apply the logical reader orientation to the renderer.
@@ -688,7 +683,7 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
     pagesUntilFullRefresh--;
   }
 
-  const bool useGrayscaleAA = SETTINGS.textAntiAliasing && !isX3DisplayGeometry(renderer);
+  const bool useGrayscaleAA = SETTINGS.textAntiAliasing && gpio.getDeviceType() != HalGPIO::DeviceType::X3;
   if (useGrayscaleAA) {
     // Save BW buffer only when we actually run grayscale passes.
     renderer.storeBwBuffer();
