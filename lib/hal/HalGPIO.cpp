@@ -3,6 +3,9 @@
 #include <Wire.h>
 #include <esp_sleep.h>
 
+// Global HalGPIO instance
+HalGPIO gpio;
+
 void HalGPIO::begin() {
   inputMgr.begin();
   SPI.begin(EPD_SCLK, SPI_MISO, EPD_MOSI, EPD_CS);
@@ -21,9 +24,9 @@ void HalGPIO::begin() {
   // reconfigures the pin for I2C, so it must run last.
   if (_deviceType == DeviceType::X3) {
     Wire.begin(20, 0, 400000);
-    _useI2C = true;
-    _i2cAddr = 0x55;
-    _socRegister = 0x2C;
+    _batteryUseI2C = true;
+    _batteryI2cAddr = 0x55;
+    _batterySocRegister = 0x2C;
   }
 }
 
@@ -53,14 +56,60 @@ void HalGPIO::startDeepSleep() {
   esp_deep_sleep_start();
 }
 
+void HalGPIO::verifyPowerButtonWakeup(uint16_t requiredDurationMs, bool shortPressAllowed) {
+  if (shortPressAllowed) {
+    // Fast path - no duration check needed
+    return;
+  }
+
+  // Calibrate: subtract boot time already elapsed, assuming button held since boot
+  const uint16_t calibration = millis();
+  const uint16_t calibratedDuration = (calibration < requiredDurationMs) ? (requiredDurationMs - calibration) : 1;
+
+  if (deviceIsX3()) {
+    // X3: Direct GPIO read (inputMgr not yet reliable at this point)
+    const uint8_t powerPin = InputManager::POWER_BUTTON_PIN;
+    if (digitalRead(powerPin) != LOW) {
+      startDeepSleep();
+    }
+    const unsigned long holdStart = millis();
+    while (millis() - holdStart < calibratedDuration) {
+      if (digitalRead(powerPin) != LOW) {
+        startDeepSleep();
+      }
+      delay(5);
+    }
+  } else {
+    // X4: Use inputMgr with wait window for it to stabilize
+    const auto start = millis();
+    inputMgr.update();
+    // inputMgr.isPressed() may take up to ~500ms to return correct state
+    while (!inputMgr.isPressed(BTN_POWER) && millis() - start < 1000) {
+      delay(10);
+      inputMgr.update();
+    }
+    if (inputMgr.isPressed(BTN_POWER)) {
+      do {
+        delay(10);
+        inputMgr.update();
+      } while (inputMgr.isPressed(BTN_POWER) && inputMgr.getHeldTime() < calibratedDuration);
+      if (inputMgr.getHeldTime() < calibratedDuration) {
+        startDeepSleep();
+      }
+    } else {
+      startDeepSleep();
+    }
+  }
+}
+
 int HalGPIO::getBatteryPercentage() const {
-  if (_useI2C) {
+  if (_batteryUseI2C) {
     // Read SOC directly from I2C fuel gauge (16-bit LE register).
     // Returns 0 on I2C error so the UI shows 0% rather than crashing.
-    Wire.beginTransmission(_i2cAddr);
-    Wire.write(_socRegister);
+    Wire.beginTransmission(_batteryI2cAddr);
+    Wire.write(_batterySocRegister);
     if (Wire.endTransmission(false) != 0) return 0;
-    Wire.requestFrom(_i2cAddr, (uint8_t)2);
+    Wire.requestFrom(_batteryI2cAddr, (uint8_t)2);
     if (Wire.available() < 2) return 0;
     const uint8_t lo = Wire.read();
     const uint8_t hi = Wire.read();

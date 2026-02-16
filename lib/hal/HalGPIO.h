@@ -30,12 +30,17 @@ class HalGPIO {
   DeviceType _deviceType = DeviceType::X4;
   int _detectAdcValue = 0;
   int _batteryPin = BAT_GPIO0;
-  bool _useI2C = false;
-  uint8_t _i2cAddr = 0;
-  uint8_t _socRegister = 0;
+  // I2C fuel gauge configuration for X3 battery monitoring
+  bool _batteryUseI2C = false;      // Whether to use I2C fuel gauge (X3) vs ADC (X4)
+  uint8_t _batteryI2cAddr = 0;      // I2C address of fuel gauge chip
+  uint8_t _batterySocRegister = 0;  // Register address for state-of-charge
 
  public:
   HalGPIO() = default;
+
+  // Inline device type helpers for cleaner downstream checks
+  inline bool deviceIsX3() const { return _deviceType == DeviceType::X3; }
+  inline bool deviceIsX4() const { return _deviceType == DeviceType::X4; }
 
   // Start button GPIO and setup SPI for screen and SD card
   void begin();
@@ -51,6 +56,11 @@ class HalGPIO {
 
   // Setup wake up GPIO and enter deep sleep
   void startDeepSleep();
+
+  // Verify power button was held long enough after wakeup.
+  // If verification fails, enters deep sleep and does not return.
+  // Should only be called when wakeup reason is PowerButton.
+  void verifyPowerButtonWakeup(uint16_t requiredDurationMs, bool shortPressAllowed);
 
   // Get battery percentage (range 0-100)
   int getBatteryPercentage() const;
